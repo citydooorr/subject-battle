@@ -1,973 +1,1166 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>二位數乘法大決鬥 - 雙人即時對戰</title>
-  <!-- Supabase JS SDK CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    :root {
-      --primary: #4f46e5;
-      --primary-hover: #4338ca;
-      --secondary: #ec4899;
-      --bg: #f0f9ff;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --success: #22c55e;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乘法神射手：二位數大決戰</title>
+    <!-- Supabase JS Client v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Canvas Confetti for Victory Effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary-color: #06b6d4;
+            --accent-color: #f59e0b;
+            --danger-color: #ef4444;
+            --success-color: #10b981;
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-dark: #1e293b;
+        }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      user-select: none;
-    }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", sans-serif;
+        }
 
-    body {
-      background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      overflow-x: hidden;
-    }
+        body {
+            background: var(--bg-gradient);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
 
-    /* 右上角固定署名 */
-    #cc-signature {
-      position: fixed;
-      top: 12px;
-      right: 16px;
-      font-size: 0.9rem;
-      font-weight: bold;
-      color: #64748b;
-      background: rgba(255, 255, 255, 0.8);
-      padding: 4px 12px;
-      border-radius: 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      z-index: 9999;
-    }
+        /* 署名 */
+        .cc-signature {
+            position: fixed;
+            top: 12px;
+            right: 16px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.4);
+            padding: 4px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(4px);
+            z-index: 9999;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
 
-    /* 直向提示畫面 (手機/平板) */
-    #portrait-warning {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: #0f172a;
-      color: #ffffff;
-      z-index: 10000;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 20px;
-    }
-    #portrait-warning .icon {
-      font-size: 4rem;
-      margin-bottom: 20px;
-      animation: rotate 2s infinite ease-in-out;
-    }
+        /* 畫面容器 */
+        .screen {
+            display: none;
+            width: 90%;
+            max-width: 960px;
+            background: var(--card-bg);
+            color: var(--text-dark);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-in-out;
+            position: relative;
+        }
 
-    @keyframes rotate {
-      0%, 100% { transform: rotate(0deg); }
-      50% { transform: rotate(90deg); }
-    }
+        .screen.active {
+            display: block;
+        }
 
-    @media (orientation: portrait) and (max-width: 900px) {
-      #portrait-warning {
-        display: flex;
-      }
-    }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-    .container {
-      width: 100%;
-      max-width: 960px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+        /* 直向提示 */
+        #portrait-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #0f172a;
+            color: #fff;
+            z-index: 10000;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 1.5rem;
+            padding: 24px;
+        }
 
-    .card {
-      background: var(--card-bg);
-      border-radius: 24px;
-      padding: 32px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 600px;
-      text-align: center;
-      transition: all 0.3s ease;
-    }
+        @media (orientation: portrait) and (max-width: 850px) {
+            #portrait-warning {
+                display: flex;
+            }
+        }
 
-    h1 {
-      font-size: 2.2rem;
-      color: var(--primary);
-      margin-bottom: 12px;
-    }
+        /* 通用元件 */
+        h1, h2 {
+            text-align: center;
+            color: #1e1b4b;
+            margin-bottom: 20px;
+        }
 
-    p.subtitle {
-      color: #64748b;
-      margin-bottom: 24px;
-      font-size: 1.1rem;
-    }
+        h1 { font-size: 2.2rem; font-weight: 800; }
+        h2 { font-size: 1.6rem; }
 
-    .status-badge {
-      display: inline-block;
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      margin-bottom: 20px;
-      background: #e2e8f0;
-      color: #475569;
-    }
-    .status-badge.online {
-      background: #dcfce7;
-      color: #166534;
-    }
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
 
-    input[type="text"] {
-      width: 100%;
-      padding: 14px 20px;
-      font-size: 1.2rem;
-      border: 2px solid #cbd5e1;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      outline: none;
-      text-align: center;
-      transition: border-color 0.2s;
-    }
-    input[type="text"]:focus {
-      border-color: var(--primary);
-    }
+        .btn:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px -2px rgba(79, 70, 229, 0.5);
+        }
 
-    button {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 14px 28px;
-      font-size: 1.2rem;
-      font-weight: bold;
-      border-radius: 14px;
-      cursor: pointer;
-      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
-      transition: all 0.2s;
-      width: 100%;
-    }
-    button:hover {
-      background: var(--primary-hover);
-      transform: translateY(-2deg);
-    }
-    button:active {
-      transform: translateY(0);
-    }
-    button.btn-danger {
-      background: var(--danger);
-      box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.3);
-    }
-    button.btn-danger:hover {
-      background: #dc2626;
-    }
-    button.btn-secondary {
-      background: #64748b;
-      box-shadow: 0 4px 6px -1px rgba(100, 116, 139, 0.3);
-    }
+        .btn:active {
+            transform: translateY(0);
+        }
 
-    /* 遊戲大廳 */
-    .lobby-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-    }
-    .room-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: 300px;
-      overflow-y: auto;
-      margin-bottom: 24px;
-    }
-    .room-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #f8fafc;
-      border: 2px solid #e2e8f0;
-      padding: 16px 20px;
-      border-radius: 16px;
-    }
-    .room-item .host-info {
-      font-weight: bold;
-      font-size: 1.1rem;
-    }
-    .room-item button {
-      width: auto;
-      padding: 8px 16px;
-      font-size: 1rem;
-    }
-    .empty-rooms {
-      color: #94a3b8;
-      font-style: italic;
-      padding: 24px;
-    }
+        .btn-secondary {
+            background: #64748b;
+            box-shadow: 0 4px 6px -1px rgba(100, 116, 139, 0.4);
+        }
+        .btn-secondary:hover { background: #475569; }
 
-    /* 對戰畫面 Battle View */
-    #screen-battle {
-      max-width: 900px;
-      width: 100%;
-    }
-    .battle-hud {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 20px;
-      padding: 16px 24px;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-      margin-bottom: 20px;
-    }
-    .player-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      width: 40%;
-    }
-    .player-avatar {
-      font-size: 2.5rem;
-      margin-bottom: 4px;
-    }
-    .player-name {
-      font-weight: bold;
-      font-size: 1.1rem;
-      margin-bottom: 6px;
-    }
-    .hp-bar-bg {
-      width: 100%;
-      height: 20px;
-      background: #e2e8f0;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .hp-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #ef4444, #22c55e);
-      width: 100%;
-      transition: width 0.3s ease;
-    }
-    .vs-badge {
-      font-size: 1.8rem;
-      font-weight: 900;
-      color: var(--secondary);
-      font-style: italic;
-    }
+        .btn-danger {
+            background: var(--danger-color);
+            box-shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.4);
+        }
+        .btn-danger:hover { background: #dc2626; }
 
-    .question-card {
-      background: var(--card-bg);
-      border-radius: 24px;
-      padding: 24px;
-      width: 100%;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-      text-align: center;
-    }
-    .question-text {
-      font-size: 3rem;
-      font-weight: 800;
-      color: var(--primary);
-      margin: 20px 0;
-      letter-spacing: 2px;
-    }
-    .options-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-top: 20px;
-    }
-    .option-btn {
-      background: #f8fafc;
-      color: var(--text);
-      border: 3px solid #cbd5e1;
-      font-size: 2rem;
-      font-weight: bold;
-      padding: 20px;
-      border-radius: 16px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    }
-    .option-btn:hover {
-      border-color: var(--primary);
-      background: #e0e7ff;
-    }
+        input[type="text"] {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.2rem;
+            border: 2px solid #cbd5e1;
+            border-radius: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            text-align: center;
+        }
 
-    /* 攻擊與閃爍特效 */
-    .hit-effect {
-      animation: hitFlash 0.4s ease-in-out;
-    }
-    @keyframes hitFlash {
-      0%, 100% { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
-      50% { background: #fca5a5; }
-    }
+        input[type="text"]:focus {
+            border-color: var(--primary-color);
+        }
 
-    .shake {
-      animation: shakeAnim 0.4s ease-in-out;
-    }
-    @keyframes shakeAnim {
-      0%, 100% { transform: translateX(0); }
-      20%, 60% { transform: translateX(-10px); }
-      40%, 80% { transform: translateX(10px); }
-    }
+        /* 登入畫面 */
+        .login-box {
+            max-width: 420px;
+            margin: 0 auto;
+            text-align: center;
+        }
 
-    /* 斷線與勝負 Modal Overlay */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(4px);
-      z-index: 9000;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-content {
-      background: white;
-      padding: 36px;
-      border-radius: 24px;
-      text-align: center;
-      max-width: 450px;
-      width: 90%;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    }
-    .result-icon {
-      font-size: 5rem;
-      margin-bottom: 12px;
-    }
-  </style>
+        .welcome-sub {
+            color: #64748b;
+            margin-bottom: 24px;
+            font-size: 1rem;
+        }
+
+        .status-badge {
+            margin-top: 20px;
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-badge.online { background: #dcfce7; color: #15803d; }
+        .status-badge.offline { background: #fee2e2; color: #b91c1c; }
+
+        /* 大廳畫面 */
+        .lobby-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .player-tag {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            background: #e0e7ff;
+            padding: 8px 16px;
+            border-radius: 12px;
+        }
+
+        .room-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .room-card {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+        }
+
+        .room-card:hover {
+            border-color: var(--secondary-color);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .room-host {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #334155;
+            margin-bottom: 8px;
+        }
+
+        .empty-lobby {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+            font-size: 1.2rem;
+        }
+
+        /* 等待畫面 */
+        .waiting-box {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #e2e8f0;
+            border-top: 6px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 24px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 對戰畫面 (Battle View) */
+        .battle-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .hud-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #1e293b;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 18px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+        }
+
+        .player-hud {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 42%;
+        }
+
+        .player-hud.right {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+
+        .avatar {
+            font-size: 2.5rem;
+            background: #334155;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            border: 3px solid #64748b;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .hp-bar-outer {
+            width: 100%;
+            height: 18px;
+            background: #475569;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px solid #1e293b;
+        }
+
+        .hp-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, #ef4444 0%, #10b981 100%);
+            width: 100%;
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .vs-badge {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--accent-color);
+            font-style: italic;
+        }
+
+        /* 題目區域 */
+        .question-box {
+            background: #f1f5f9;
+            border: 3px solid #cbd5e1;
+            border-radius: 20px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .question-text {
+            font-size: 2.8rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: 2px;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 10px;
+        }
+
+        .option-btn {
+            background: white;
+            border: 3px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .option-btn:hover {
+            border-color: var(--primary-color);
+            background: #f8fafc;
+            transform: scale(1.02);
+        }
+
+        .option-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* 動畫特效 */
+        .shake {
+            animation: shakeAnim 0.4s ease-in-out;
+        }
+
+        @keyframes shakeAnim {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        .flash-hit {
+            animation: flashHitAnim 0.3s ease;
+        }
+
+        @keyframes flashHitAnim {
+            0% { background: var(--card-bg); }
+            50% { background: rgba(239, 68, 68, 0.3); }
+            100% { background: var(--card-bg); }
+        }
+
+        /* 結果與斷線 Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            color: var(--text-dark);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .result-icon { font-size: 4rem; margin-bottom: 12px; }
+
+        /* 提示 Toast */
+        #toast-container {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .toast {
+            background: #1e293b;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            animation: fadeIn 0.2s ease;
+        }
+        .toast.error { background: var(--danger-color); }
+    </style>
 </head>
 <body>
 
-  <!-- 右上角固定署名 -->
-  <div id="cc-signature">cc老師</div>
+    <!-- 右上角署名 -->
+    <div class="cc-signature">cc老師</div>
 
-  <!-- 手機直向警告 -->
-  <div id="portrait-warning">
-    <div class="icon">↻</div>
-    <h2>請將手機橫向放置</h2>
-    <p style="margin-top: 10px; color: #94a3b8;">獲得最佳課堂對戰體驗</p>
-  </div>
-
-  <div class="container">
-
-    <!-- 1. 登入畫面 -->
-    <div id="screen-login" class="card">
-      <h1>乘法小勇士</h1>
-      <p class="subtitle">三年級數學：二位數乘以一位數大決鬥</p>
-      <div id="connection-badge" class="status-badge">資料庫連線中...</div>
-      <input type="text" id="input-nickname" placeholder="請輸入你的暱稱 (1-20字)" maxlength="20">
-      <button id="btn-login-start">進入遊戲大廳</button>
+    <!-- 直向提示 -->
+    <div id="portrait-warning">
+        <div style="font-size: 4rem; margin-bottom: 16px;">↻</div>
+        <div>請將手機轉為橫向以獲得最佳對戰體驗</div>
     </div>
 
-    <!-- 2. 遊戲大廳 Screen -->
-    <div id="screen-lobby" class="card" style="display: none;">
-      <div class="lobby-header">
-        <h2>遊戲大廳</h2>
-        <span id="label-user-name" style="font-weight: bold; color: var(--primary);"></span>
-      </div>
-      <button id="btn-create-room" style="margin-bottom: 20px;">＋ 建立房間</button>
-      <h3 style="text-align: left; margin-bottom: 12px; color: #475569;">等待中的對戰房：</h3>
-      <div id="room-list" class="room-list">
-        <div class="empty-rooms">載入中...</div>
-      </div>
+    <!-- 提示 Toast 容器 -->
+    <div id="toast-container"></div>
+
+    <!-- 斷線提示 Modal -->
+    <div id="disconnect-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="result-icon">⚠️</div>
+            <h2>連線中斷</h2>
+            <p id="disconnect-msg" style="margin: 16px 0 24px; color: #64748b;">對手已斷線</p>
+            <button class="btn" onclick="returnToLobby()">回到遊戲大廳</button>
+        </div>
     </div>
 
-    <!-- 3. 等待對手加入 Screen -->
-    <div id="screen-waiting" class="card" style="display: none;">
-      <h1>等待對手加入...</h1>
-      <div style="font-size: 4rem; margin: 24px 0; animation: bounce 1.5s infinite;">⏳</div>
-      <p class="subtitle">房主心跳發送中，請稍候...</p>
-      <button id="btn-cancel-room" class="btn-danger">取消房間</button>
+    <!-- 遊戲結果 Modal -->
+    <div id="result-modal" class="modal-overlay">
+        <div class="modal-card">
+            <div id="result-icon" class="result-icon">🏆</div>
+            <h2 id="result-title">對戰結束</h2>
+            <p id="result-desc" style="margin: 16px 0 24px; color: #64748b; font-size: 1.2rem;"></p>
+            <button class="btn" onclick="returnToLobby()">回到遊戲大廳</button>
+        </div>
     </div>
 
-    <!-- 4. 遊戲對戰 Screen -->
-    <div id="screen-battle" style="display: none;">
-      <div class="battle-hud">
-        <!-- 我方 (左) -->
-        <div class="player-card">
-          <div id="p1-avatar" class="player-avatar">🐱</div>
-          <div id="p1-name" class="player-name">我方</div>
-          <div class="hp-bar-bg"><div id="p1-hp-bar" class="hp-bar-fill"></div></div>
-          <div style="font-size: 0.9rem; margin-top: 4px; color: #64748b;">HP: <span id="p1-hp-num">7</span>/7 | 得分: <span id="p1-score-num">0</span></div>
+    <!-- Screen 1: 登入畫面 -->
+    <div id="screen-login" class="screen active">
+        <div class="login-box">
+            <div style="font-size: 3.5rem; margin-bottom: 10px;">🎯</div>
+            <h1>乘法神射手</h1>
+            <p class="welcome-sub">三年級數學：二位數乘以一位數大決戰</p>
+            
+            <div style="margin-bottom: 20px;">
+                <input type="text" id="nickname-input" placeholder="請輸入你的暱稱 (1-20字)" maxlength="20" autocomplete="off">
+            </div>
+            
+            <button class="btn" style="width: 100%;" onclick="handleLogin()">進入遊戲大廳</button>
+
+            <div>
+                <span id="db-status-badge" class="status-badge offline">資料庫連線中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Screen 2: 遊戲大廳 -->
+    <div id="screen-lobby" class="screen">
+        <div class="lobby-header">
+            <div>
+                <span style="color: #64748b; font-size: 0.9rem;">歡迎玩家</span>
+                <div class="player-tag" id="lobby-player-name">---</div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" onclick="loadLobbyRooms()">重新整理</button>
+                <button class="btn" onclick="handleCreateRoom()">建立房間</button>
+            </div>
         </div>
 
-        <div class="vs-badge">VS</div>
-
-        <!-- 對手 (右) -->
-        <div class="player-card">
-          <div id="p2-avatar" class="player-avatar">🐶</div>
-          <div id="p2-name" class="player-name">對手</div>
-          <div class="hp-bar-bg"><div id="p2-hp-bar" class="hp-bar-fill"></div></div>
-          <div style="font-size: 0.9rem; margin-top: 4px; color: #64748b;">HP: <span id="p2-hp-num">7</span>/7 | 得分: <span id="p2-score-num">0</span></div>
+        <h3 style="margin-bottom: 12px; color: #475569;">等待中的對戰房間</h3>
+        <div id="room-grid" class="room-grid">
+            <div class="empty-lobby">正在載入房間資料...</div>
         </div>
-      </div>
-
-      <div class="question-card" id="question-card-box">
-        <div id="feedback-msg" style="height: 24px; font-weight: bold; font-size: 1.2rem; color: var(--primary);"></div>
-        <div id="question-text" class="question-text">24 × 3 = ?</div>
-        <div class="options-grid">
-          <button class="option-btn" onclick="submitAnswer(0)">A</button>
-          <button class="option-btn" onclick="submitAnswer(1)">B</button>
-          <button class="option-btn" onclick="submitAnswer(2)">C</button>
-          <button class="option-btn" onclick="submitAnswer(3)">D</button>
-        </div>
-      </div>
     </div>
 
-  </div>
-
-  <!-- 5. 斷線 / 結束 Modal Overlay -->
-  <div id="modal-result" class="modal-overlay">
-    <div class="modal-content">
-      <div id="result-icon" class="result-icon">🏆</div>
-      <h1 id="result-title">比賽結束</h1>
-      <p id="result-msg" class="subtitle" style="margin-top: 12px;">獲勝者：...</p>
-      <button id="btn-back-lobby" style="margin-top: 20px;">回到遊戲大廳</button>
+    <!-- Screen 3: 等待房間 -->
+    <div id="screen-waiting" class="screen">
+        <div class="waiting-box">
+            <h2>等待對手加入中...</h2>
+            <div class="spinner"></div>
+            <p style="color: #64748b; margin-bottom: 30px;">房間代碼：<span id="waiting-room-code" style="font-weight: 700; color: var(--primary-color);">------</span></p>
+            <button class="btn btn-danger" onclick="handleCancelRoom()">取消房間</button>
+        </div>
     </div>
-  </div>
 
-  <script>
-    // ==========================================
-    // Supabase 連線資訊與初始化
-    // ==========================================
-    const SUPABASE_URL = 'https://oxvjngsftuvegsaiyxhg.supabase.co';
-    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_D261Xj6WAmRUKRxfPBiy9A_94c_MtrE';
-    
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    <!-- Screen 4: 對戰畫面 -->
+    <div id="screen-battle" class="screen">
+        <div class="battle-container">
+            <!-- HUD 頂部狀態 -->
+            <div class="hud-bar">
+                <!-- 我方 (Left) -->
+                <div class="player-hud">
+                    <div class="avatar" id="p1-avatar">🐱</div>
+                    <div class="player-info">
+                        <div class="player-name" id="p1-name">我方</div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="p1-hp-bar"></div>
+                        </div>
+                    </div>
+                </div>
 
-    // ==========================================
-    // 全域變數與狀態管理
-    // ==========================================
-    let clientToken = localStorage.getItem('sequence_battle_client_token');
-    if (!clientToken) {
-      clientToken = crypto.randomUUID();
-      localStorage.setItem('sequence_battle_client_token', clientToken);
-    }
+                <div class="vs-badge">VS</div>
 
-    let nickname = '';
-    let currentRoomId = null;
-    let currentSeat = null; // 1 or 2
-    let currentQuestion = null;
-    let heartbeatTimer = null;
-    let disconnectTimer = null;
-    let opponentWasPresent = false;
-    let lastProcessedEventId = null;
+                <!-- 對手 (Right) -->
+                <div class="player-hud right">
+                    <div class="avatar" id="p2-avatar">🐶</div>
+                    <div class="player-info">
+                        <div class="player-name" id="p2-name">對手</div>
+                        <div class="hp-bar-outer">
+                            <div class="hp-bar-inner" id="p2-hp-bar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    let gameChannel = null;
-    let lobbyChannel = null;
+            <!-- 題目區域 -->
+            <div class="question-box" id="question-box">
+                <div class="question-text" id="question-text">34 × 6 = ?</div>
+            </div>
 
-    const AVATARS = ['🐱 喵喵俠', '🐶 汪汪隊長', '🐰 兔兔騎士', '🐻 熊熊勇士', '🦊 狐狸法師', '🐼 熊貓大師'];
+            <!-- 選項按鈕 -->
+            <div class="options-grid" id="options-grid">
+                <button class="option-btn" onclick="submitAnswer(0)">A</button>
+                <button class="option-btn" onclick="submitAnswer(1)">B</button>
+                <button class="option-btn" onclick="submitAnswer(2)">C</button>
+                <button class="option-btn" onclick="submitAnswer(3)">D</button>
+            </div>
+        </div>
+    </div>
 
-    // ==========================================
-    // DOM 元素載入與初始化
-    // ==========================================
-    window.addEventListener('DOMContentLoaded', async () => {
-      checkSupabaseConnection();
-      
-      document.getElementById('btn-login-start').addEventListener('click', handleLogin);
-      document.getElementById('btn-create-room').addEventListener('click', handleCreateRoom);
-      document.getElementById('btn-cancel-room').addEventListener('click', handleCancelRoom);
-      document.getElementById('btn-back-lobby').addEventListener('click', resetToLobby);
+    <script>
+        // ==========================================
+        // 1. Supabase 初始化 (使用傳入的正式憑證)
+        // ==========================================
+        const SUPABASE_URL = 'https://oxvjngsftuvegsaiyxhg.supabase.co';
+        const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_D261Xj6WAmRUKRxfPBiy9A_94c_MtrE';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
-      // 頁面離場備用防護
-      window.addEventListener('pagehide', () => {
-        if (currentRoomId && currentSeat === 1) {
-          navigator.sendBeacon && navigator.sendBeacon(`${SUPABASE_URL}/rest/v1/rpc/cancel_room`, JSON.stringify({
-            p_room_id: currentRoomId,
-            p_client_token: clientToken
-          }));
-        }
-      });
-    });
+        // 可愛角色清單
+        const AVATARS = ['🐱', '🐶', '🐰', '🐻', '🦊', '🐼', '🐧', '🐸'];
 
-    async function checkSupabaseConnection() {
-      const badge = document.getElementById('connection-badge');
-      try {
-        const { data, error } = await supabase.from('rooms').select('id').limit(1);
-        if (!error) {
-          badge.textContent = '資料庫已連接';
-          badge.classList.add('online');
-        } else {
-          badge.textContent = '資料庫連線異常';
-        }
-      } catch (e) {
-        badge.textContent = '連線失敗';
-      }
-    }
+        // 全局狀態管理
+        let clientToken = getClientToken();
+        let nickname = '';
+        let currentRoomId = null;
+        let currentSeat = null;
+        let heartbeatTimer = null;
+        let disconnectTimer = null;
+        let gameChannel = null;
+        let lobbyChannel = null;
+        let opponentWasPresent = false;
+        let currentQuestion = null;
+        let isAnsweringLocked = false;
+        let lastEventId = null;
 
-    // 切換頁面視圖
-    function showScreen(screenId) {
-      ['screen-login', 'screen-lobby', 'screen-waiting', 'screen-battle'].forEach(id => {
-        document.getElementById(id).style.display = (id === screenId) ? (id === 'screen-battle' ? 'block' : 'card' ? 'block' : 'block') : 'none';
-      });
-      // 特殊 CSS display 修正
-      if (screenId === 'screen-login' || screenId === 'screen-lobby' || screenId === 'screen-waiting') {
-        document.getElementById(screenId).style.display = 'block';
-      }
-    }
-
-    // ==========================================
-    // 1. 首頁與登入
-    // ==========================================
-    function handleLogin() {
-      const input = document.getElementById('input-nickname').value.trim();
-      if (!input || input.length < 1 || input.length > 20) {
-        alert('請輸入 1 ~ 20 字元的暱稱');
-        return;
-      }
-      nickname = input;
-      document.getElementById('label-user-name').textContent = `玩家：${nickname}`;
-      showScreen('screen-lobby');
-      subscribeLobbyRealtime();
-      refreshLobbyRooms();
-    }
-
-    // ==========================================
-    // 2. 遊戲大廳與即時房間監聽
-    // ==========================================
-    async function refreshLobbyRooms() {
-      try {
-        const { data, error } = await supabase.rpc('list_live_rooms');
-        if (error) throw error;
-
-        const listContainer = document.getElementById('room-list');
-        listContainer.innerHTML = '';
-
-        if (!data || data.length === 0) {
-          listContainer.innerHTML = '<div class="empty-rooms">目前沒有等待中的房間，快來建立一個吧！</div>';
-          return;
+        // ==========================================
+        // 2. 初始化與 UUID 身分識別
+        // ==========================================
+        function getClientToken() {
+            let token = localStorage.getItem('sequence_battle_client_token');
+            if (!token) {
+                token = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
+                localStorage.setItem('sequence_battle_client_token', token);
+            }
+            return token;
         }
 
-        data.forEach(room => {
-          const item = document.createElement('div');
-          item.className = 'room-item';
-          item.innerHTML = `
-            <div class="host-info">🏠 ${escapeHtml(room.host_nickname)} 的房間</div>
-            <button onclick="handleProbeAndJoin('${room.room_id}')">加入對戰</button>
-          `;
-          listContainer.appendChild(item);
-        });
-      } catch (err) {
-        console.error('Fetch live rooms failed:', err);
-      }
-    }
-
-    function subscribeLobbyRealtime() {
-      if (lobbyChannel) return;
-      lobbyChannel = supabase.channel('public:rooms')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
-          refreshLobbyRooms();
-        })
-        .subscribe();
-    }
-
-    // ==========================================
-    // 3. 建立房間與 Heartbeat
-    // ==========================================
-    async function handleCreateRoom() {
-      try {
-        const { data, error } = await supabase.rpc('create_room', {
-          p_nickname: nickname,
-          p_client_token: clientToken
+        window.addEventListener('DOMContentLoaded', async () => {
+            checkDatabaseConnection();
+            
+            // 自動修復 pagehide 房主離線 cleanup
+            window.addEventListener('pagehide', () => {
+                if (currentRoomId && currentSeat === 1) {
+                    const url = `${SUPABASE_URL}/rest/v1/rpc/cancel_room`;
+                    const body = JSON.stringify({
+                        p_room_id: currentRoomId,
+                        p_client_token: clientToken
+                    });
+                    fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': SUPABASE_PUBLISHABLE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`
+                        },
+                        body: body,
+                        keepalive: true
+                    });
+                }
+            });
         });
 
-        if (error) throw error;
-
-        currentRoomId = data.room_id;
-        currentSeat = 1;
-
-        showScreen('screen-waiting');
-        startHeartbeat();
-        listenAsHost(currentRoomId);
-      } catch (err) {
-        alert('建立房間失敗：' + (err.message || '網路錯誤'));
-      }
-    }
-
-    function startHeartbeat() {
-      stopHeartbeat();
-      heartbeatTimer = setInterval(async () => {
-        if (currentRoomId && currentSeat === 1) {
-          await supabase.rpc('heartbeat_room', {
-            p_room_id: currentRoomId,
-            p_client_token: clientToken
-          });
+        async function checkDatabaseConnection() {
+            const badge = document.getElementById('db-status-badge');
+            try {
+                const { data, error } = await supabase.rpc('list_live_rooms');
+                if (error) throw error;
+                badge.textContent = '資料庫已連接';
+                badge.className = 'status-badge online';
+            } catch (err) {
+                console.error(err);
+                badge.textContent = '資料庫連線失敗';
+                badge.className = 'status-badge offline';
+            }
         }
-      }, 3000);
-    }
 
-    function stopHeartbeat() {
-      if (heartbeatTimer) {
-        clearInterval(heartbeatTimer);
-        heartbeatTimer = null;
-      }
-    }
+        // UI 畫面切換
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
 
-    async function handleCancelRoom() {
-      if (!currentRoomId) return;
-      try {
-        await supabase.rpc('cancel_room', {
-          p_room_id: currentRoomId,
-          p_client_token: clientToken
-        });
-      } catch (e) {
-        console.error(e);
-      } finally {
-        resetToLobby();
-      }
-    }
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
 
-    // 房主在 Waiting 階段監聽 Join Probe 握手與遊戲開始
-    function listenAsHost(roomId) {
-      if (gameChannel) supabase.removeChannel(gameChannel);
+        // ==========================================
+        // 3. 登入與大廳邏輯
+        // ==========================================
+        function handleLogin() {
+            const input = document.getElementById('nickname-input').value.trim();
+            if (!input || input.length < 1 || input.length > 20) {
+                showToast('請輸入 1 至 20 個字的暱稱', 'error');
+                return;
+            }
+            nickname = input;
+            document.getElementById('lobby-player-name').textContent = nickname;
+            switchScreen('screen-lobby');
+            subscribeLobbyRealtime();
+            loadLobbyRooms();
+        }
 
-      gameChannel = supabase.channel(`game-${roomId}`);
-      
-      gameChannel
-        .on('broadcast', { event: 'join_probe' }, payload => {
-          // 回傳 Ack
-          gameChannel.send({
-            type: 'broadcast',
-            event: 'host_ack',
-            payload: { probe_id: payload.payload.probe_id }
-          });
-        })
-        .on('postgres_changes', { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'game_state',
-          filter: `room_id=eq.${roomId}`
-        }, payload => {
-          if (payload.new.status === 'playing') {
+        async function loadLobbyRooms() {
+            const grid = document.getElementById('room-grid');
+            try {
+                const { data, error } = await supabase.rpc('list_live_rooms');
+                if (error) throw error;
+
+                grid.innerHTML = '';
+                if (!data || data.length === 0) {
+                    grid.innerHTML = '<div class="empty-lobby">目前沒有等待中的房間，快來建立一個吧！</div>';
+                    return;
+                }
+
+                data.forEach(room => {
+                    const card = document.createElement('div');
+                    card.className = 'room-card';
+                    card.innerHTML = `
+                        <div>
+                            <div class="room-host">房主：${escapeHtml(room.host_nickname)}</div>
+                            <div style="color: #64748b; font-size: 0.9rem;">房間號：${room.room_code}</div>
+                        </div>
+                        <button class="btn" style="margin-top: 16px;" onclick="attemptJoinRoom('${room.room_id}')">加入對戰</button>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                showToast('載入房間列表失敗', 'error');
+            }
+        }
+
+        function subscribeLobbyRealtime() {
+            if (lobbyChannel) supabase.removeChannel(lobbyChannel);
+            lobbyChannel = supabase
+                .channel('lobby-rooms')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, () => {
+                    loadLobbyRooms();
+                })
+                .subscribe();
+        }
+
+        // ==========================================
+        // 4. 建立房間與 Heartbeat 邏輯
+        // ==========================================
+        async function handleCreateRoom() {
+            try {
+                const { data, error } = await supabase.rpc('create_room', {
+                    p_nickname: nickname,
+                    p_client_token: clientToken
+                });
+
+                if (error) throw error;
+
+                currentRoomId = data.room_id;
+                currentSeat = 1;
+
+                document.getElementById('waiting-room-code').textContent = data.room_code;
+                switchScreen('screen-waiting');
+
+                // 啟動 Waiting 階段 Heartbeat
+                startHeartbeat();
+                // 啟動 2 秒 Join Probe 監聽與遊戲廣播頻道
+                setupHostWaitingProbe();
+
+            } catch (err) {
+                showToast('建立房間失敗：' + (err.message || '網路錯誤'), 'error');
+            }
+        }
+
+        function startHeartbeat() {
             stopHeartbeat();
-            enterBattle(payload.new);
-          }
-        })
-        .subscribe();
-    }
-
-    // ==========================================
-    // 4. 加入房間前的 2 秒 Broadcast 握手
-    // ==========================================
-    async function handleProbeAndJoin(roomId) {
-      const probeId = crypto.randomUUID();
-      const tempChannel = supabase.channel(`game-${roomId}`);
-
-      let ackReceived = false;
-
-      tempChannel.on('broadcast', { event: 'host_ack' }, payload => {
-        if (payload.payload.probe_id === probeId) {
-          ackReceived = true;
+            heartbeatTimer = setInterval(async () => {
+                if (currentRoomId && currentSeat === 1) {
+                    await supabase.rpc('heartbeat_room', {
+                        p_room_id: currentRoomId,
+                        p_client_token: clientToken
+                    });
+                }
+            }, 3000);
         }
-      }).subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // 發送 Probe
-          tempChannel.send({
-            type: 'broadcast',
-            event: 'join_probe',
-            payload: { probe_id: probeId }
-          });
 
-          // 等待最多 2000 ms
-          setTimeout(async () => {
+        function stopHeartbeat() {
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+        }
+
+        async function handleCancelRoom() {
+            if (!currentRoomId) return;
+            try {
+                await supabase.rpc('cancel_room', {
+                    p_room_id: currentRoomId,
+                    p_client_token: clientToken
+                });
+            } catch (err) {
+                console.error(err);
+            } finally {
+                cleanupAndReturnLobby();
+            }
+        }
+
+        // ==========================================
+        // 5. 加入房間前的 2 秒 Realtime Broadcast 握手
+        // ==========================================
+        function setupHostWaitingProbe() {
+            if (gameChannel) supabase.removeChannel(gameChannel);
+            gameChannel = supabase.channel(`game-${currentRoomId}`);
+
+            // 房主監聽 join_probe 廣播
+            gameChannel
+                .on('broadcast', { event: 'join_probe' }, (payload) => {
+                    const probeId = payload.payload.probe_id;
+                    gameChannel.send({
+                        type: 'broadcast',
+                        event: 'host_ack',
+                        payload: { probe_id: probeId }
+                    });
+                })
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${currentRoomId}` }, (payload) => {
+                    if (payload.new.status === 'playing') {
+                        // 有玩家成功加入，開始遊戲
+                        stopHeartbeat();
+                        startBattle();
+                    }
+                })
+                .subscribe();
+        }
+
+        async function attemptJoinRoom(roomId) {
+            showToast('正在驗證房主連線狀態...');
+            const probeId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString();
+            let ackReceived = false;
+
+            const tempChannel = supabase.channel(`game-${roomId}`);
+
+            tempChannel
+                .on('broadcast', { event: 'host_ack' }, (payload) => {
+                    if (payload.payload.probe_id === probeId) {
+                        ackReceived = true;
+                    }
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await tempChannel.send({
+                            type: 'broadcast',
+                            event: 'join_probe',
+                            payload: { probe_id: probeId }
+                        });
+                    }
+                });
+
+            // 最多等待 2000 ms
+            const start = Date.now();
+            while (Date.now() - start < 2000) {
+                if (ackReceived) break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            await supabase.removeChannel(tempChannel);
+
             if (ackReceived) {
-              supabase.removeChannel(tempChannel);
-              executeJoinRoom(roomId);
+                // 握手成功，執行正式 join_room
+                executeJoinRoom(roomId);
             } else {
-              supabase.removeChannel(tempChannel);
-              alert('房主已離開，請選其他房間。');
-              refreshLobbyRooms();
+                showToast('房主已離開，請選其他房間。', 'error');
+                loadLobbyRooms();
             }
-          }, 2000);
-        }
-      });
-    }
-
-    async function executeJoinRoom(roomId) {
-      try {
-        const { data, error } = await supabase.rpc('join_room', {
-          p_room_id: roomId,
-          p_nickname: nickname,
-          p_client_token: clientToken
-        });
-
-        if (error) {
-          if (error.message.includes('HOST_OFFLINE')) {
-            alert('房主已離開，請選其他房間。');
-          } else if (error.message.includes('ROOM_ALREADY_FULL')) {
-            alert('房間人數已滿！');
-          } else {
-            alert('無法加入房間：' + error.message);
-          }
-          refreshLobbyRooms();
-          return;
         }
 
-        currentRoomId = roomId;
-        currentSeat = 2;
+        async function executeJoinRoom(roomId) {
+            try {
+                const { data, error } = await supabase.rpc('join_room', {
+                    p_room_id: roomId,
+                    p_nickname: nickname,
+                    p_client_token: clientToken
+                });
 
-        // 取得初始 game_state 並進入對戰
-        const { data: gsData } = await supabase.from('game_state').select('*').eq('room_id', roomId).single();
-        enterBattle(gsData);
+                if (error) {
+                    if (error.message.includes('HOST_OFFLINE')) {
+                        showToast('房主已離線，請選擇其他房間', 'error');
+                    } else if (error.message.includes('ROOM_ALREADY_FULL')) {
+                        showToast('房間已滿', 'error');
+                    } else {
+                        showToast('加入失敗：' + error.message, 'error');
+                    }
+                    loadLobbyRooms();
+                    return;
+                }
 
-      } catch (err) {
-        alert('加入房間發生錯誤：' + err.message);
-      }
-    }
+                currentRoomId = roomId;
+                currentSeat = 2;
+                startBattle();
+            } catch (err) {
+                showToast('加入房間發生錯誤', 'error');
+            }
+        }
 
-    // ==========================================
-    // 5. 進入對戰 Battle View & Realtime 同步
-    // ==========================================
-    function enterBattle(gameState) {
-      stopHeartbeat();
-      showScreen('screen-battle');
+        // ==========================================
+        // 6. 對戰階段 (Battle & Realtime & Presence)
+        // ==========================================
+        function startBattle() {
+            switchScreen('screen-battle');
+            stopHeartbeat();
+            
+            // 角色指派（同 roomId 產生固定組合）
+            const charP1 = AVATARS[Math.abs(hashString(currentRoomId)) % AVATARS.length];
+            const charP2 = AVATARS[(Math.abs(hashString(currentRoomId)) + 3) % AVATARS.length];
 
-      // 初始化腳色頭像
-      const { p1Av, p2Av } = getDeterministicAvatars(currentRoomId);
-      
-      // 我方永遠在左、對手在右
-      if (currentSeat === 1) {
-        document.getElementById('p1-name').textContent = gameState.player1_name || nickname;
-        document.getElementById('p2-name').textContent = gameState.player2_name || '對手';
-        document.getElementById('p1-avatar').textContent = p1Av;
-        document.getElementById('p2-avatar').textContent = p2Av;
-      } else {
-        document.getElementById('p1-name').textContent = gameState.player2_name || nickname;
-        document.getElementById('p2-name').textContent = gameState.player1_name || '房主';
-        document.getElementById('p1-avatar').textContent = p2Av;
-        document.getElementById('p2-avatar').textContent = p1Av;
-      }
+            if (currentSeat === 1) {
+                document.getElementById('p1-avatar').textContent = charP1;
+                document.getElementById('p2-avatar').textContent = charP2;
+            } else {
+                document.getElementById('p1-avatar').textContent = charP2;
+                document.getElementById('p2-avatar').textContent = charP1;
+            }
 
-      updateBattleUI(gameState);
-      setupBattleChannel(currentRoomId);
-      generateNextQuestion();
-    }
+            setupBattleChannel();
+            generateNextQuestion();
+        }
 
-    function setupBattleChannel(roomId) {
-      if (gameChannel) supabase.removeChannel(gameChannel);
+        function setupBattleChannel() {
+            if (gameChannel) supabase.removeChannel(gameChannel);
+            opponentWasPresent = false;
 
-      opponentWasPresent = false;
+            gameChannel = supabase.channel(`game-${currentRoomId}`, {
+                config: { presence: { key: clientToken } }
+            });
 
-      gameChannel = supabase.channel(`game-${roomId}`, {
-        config: { presence: { key: clientToken } }
-      });
+            // 1. Presence 斷線偵測
+            gameChannel
+                .on('presence', { event: 'sync' }, () => {
+                    const state = gameChannel.presenceState();
+                    const presentTokens = Object.keys(state);
+                    const opponentInChannel = presentTokens.some(tok => tok !== clientToken);
 
-      // 監聽遊戲狀態變更 (game_state)
-      gameChannel
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'game_state',
-          filter: `room_id=eq.${roomId}`
-        }, payload => {
-          handleGameStateUpdate(payload.new);
-        })
-        .on('presence', { event: 'sync' }, () => {
-          const state = gameChannel.presenceState();
-          const presentTokens = Object.keys(state);
-          const opponentPresent = presentTokens.some(token => token !== clientToken);
+                    if (opponentInChannel) {
+                        opponentWasPresent = true;
+                        if (disconnectTimer) {
+                            clearTimeout(disconnectTimer);
+                            disconnectTimer = null;
+                        }
+                    } else if (opponentWasPresent) {
+                        if (!disconnectTimer) {
+                            disconnectTimer = setTimeout(() => {
+                                showDisconnectOverlay('對手已斷線');
+                            }, 5000); // 5 秒 grace period
+                        }
+                    }
+                })
+                // 2. Game State Realtime 同步
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'game_state', 
+                    filter: `room_id=eq.${currentRoomId}` 
+                }, (payload) => {
+                    syncGameState(payload.new);
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await gameChannel.track({
+                            seat: currentSeat,
+                            nickname: nickname
+                        });
+                    }
+                });
+        }
 
-          if (opponentPresent) {
-            opponentWasPresent = true;
+        // 題目產生器：三年級乘法 (二位數 × 一位數)
+        function generateNextQuestion() {
+            isAnsweringLocked = false;
+            // 二位數: 11 ~ 99, 一位數: 2 ~ 9
+            const num1 = Math.floor(Math.random() * 89) + 11;
+            const num2 = Math.floor(Math.random() * 8) + 2;
+            const correctAns = num1 * num2;
+
+            const optionsSet = new Set([correctAns]);
+            while (optionsSet.size < 4) {
+                const offsets = [-10, 10, -1, 1, -2, 2, -5, 5, -20, 20];
+                const randOffset = offsets[Math.floor(Math.random() * offsets.length)];
+                const candidate = correctAns + randOffset;
+                if (candidate > 0 && candidate !== correctAns) {
+                    optionsSet.add(candidate);
+                }
+            }
+
+            const options = Array.from(optionsSet).sort(() => Math.random() - 0.5);
+
+            currentQuestion = {
+                text: `${num1} × ${num2} = ?`,
+                options: options,
+                answer: correctAns
+            };
+
+            // 渲染至 UI
+            document.getElementById('question-text').textContent = currentQuestion.text;
+            const btns = document.querySelectorAll('.option-btn');
+            options.forEach((opt, idx) => {
+                btns[idx].textContent = opt;
+                btns[idx].style.background = 'white';
+            });
+        }
+
+        async function submitAnswer(optionIndex) {
+            if (isAnsweringLocked || !currentQuestion) return;
+            isAnsweringLocked = true;
+
+            const selectedOpt = currentQuestion.options[optionIndex];
+            const isCorrect = (selectedOpt === currentQuestion.answer);
+
+            const btn = document.querySelectorAll('.option-btn')[optionIndex];
+            btn.style.background = isCorrect ? '#dcfce7' : '#fee2e2';
+
+            try {
+                const { data, error } = await supabase.rpc('resolve_answer', {
+                    p_room_id: currentRoomId,
+                    p_client_token: clientToken,
+                    p_is_correct: isCorrect
+                });
+                if (error) throw error;
+            } catch (err) {
+                console.error('Resolve answer failed:', err);
+                isAnsweringLocked = false;
+            }
+        }
+
+        // 同步遊戲真正狀態
+        function syncGameState(state) {
+            const isPlayer1 = (currentSeat === 1);
+            const myHp = isPlayer1 ? state.player1_hp : state.player2_hp;
+            const oppHp = isPlayer1 ? state.player2_hp : state.player1_hp;
+
+            document.getElementById('p1-name').textContent = isPlayer1 ? (state.player1_name || nickname) : (state.player2_name || '對手');
+            document.getElementById('p2-name').textContent = isPlayer1 ? (state.player2_name || '對手') : (state.player1_name || nickname);
+
+            // 更新 HP 條 (最大 7)
+            document.getElementById('p1-hp-bar').style.width = `${Math.max(0, (myHp / 7) * 100)}%`;
+            document.getElementById('p2-hp-bar').style.width = `${Math.max(0, (oppHp / 7) * 100)}%`;
+
+            // 動畫觸發
+            if (state.last_event_id && state.last_event_id !== lastEventId) {
+                lastEventId = state.last_event_id;
+                triggerEventAnimation(state.last_event_type, state.last_event_seat);
+                setTimeout(generateNextQuestion, 600);
+            }
+
+            // 遊戲結束判斷
+            if (state.status === 'finished') {
+                showGameResult(state.winner_seat);
+            }
+        }
+
+        function triggerEventAnimation(eventType, eventSeat) {
+            const screen = document.getElementById('screen-battle');
+            if (eventType === 'hit') {
+                if (eventSeat === currentSeat) {
+                    showToast('🎯 答對！成功攻擊對手！');
+                } else {
+                    showToast('💥 對手答對，受到了攻擊！', 'error');
+                    screen.classList.add('shake', 'flash-hit');
+                    setTimeout(() => screen.classList.remove('shake', 'flash-hit'), 500);
+                }
+            } else if (eventType === 'self_hit') {
+                if (eventSeat === currentSeat) {
+                    showToast('😅 答錯受傷了，加油！', 'error');
+                    screen.classList.add('shake');
+                    setTimeout(() => screen.classList.remove('shake'), 500);
+                } else {
+                    showToast('⭐ 對手答錯受傷了！');
+                }
+            }
+        }
+
+        // ==========================================
+        // 7. 勝負與離開清理
+        // ==========================================
+        function showGameResult(winnerSeat) {
+            const modal = document.getElementById('result-modal');
+            const icon = document.getElementById('result-icon');
+            const title = document.getElementById('result-title');
+            const desc = document.getElementById('result-desc');
+
+            const isWinner = (winnerSeat === currentSeat);
+
+            if (isWinner) {
+                icon.textContent = '🏆';
+                title.textContent = '獲勝！太棒了！';
+                desc.textContent = '你展現了超凡的乘法運算能力！';
+                confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            } else {
+                icon.textContent = '💪';
+                title.textContent = '再接再厲！';
+                desc.textContent = '差一點就贏了，再練習一下乘法吧！';
+            }
+
+            modal.classList.add('active');
+        }
+
+        function showDisconnectOverlay(msg) {
+            document.getElementById('disconnect-msg').textContent = msg;
+            document.getElementById('disconnect-modal').classList.add('active');
+        }
+
+        function hideDisconnectOverlay() {
+            document.getElementById('disconnect-modal').classList.remove('active');
+        }
+
+        function returnToLobby() {
+            document.getElementById('result-modal').classList.remove('active');
+            document.getElementById('disconnect-modal').classList.remove('active');
+            cleanupAndReturnLobby();
+        }
+
+        function cleanupAndReturnLobby() {
+            stopHeartbeat();
             if (disconnectTimer) {
-              clearTimeout(disconnectTimer);
-              disconnectTimer = null;
+                clearTimeout(disconnectTimer);
+                disconnectTimer = null;
             }
-          } else if (opponentWasPresent && !disconnectTimer) {
-            // 對手曾經在線，現在離開 -> 5 秒 Grace Period
-            disconnectTimer = setTimeout(() => {
-              showResultModal(false, '對手已斷線！', '對手離開了戰局，自動獲勝。');
-            }, 5000);
-          }
-        })
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            await gameChannel.track({ seat: currentSeat, nickname: nickname });
-          }
-        });
-    }
+            if (gameChannel) {
+                supabase.removeChannel(gameChannel);
+                gameChannel = null;
+            }
+            currentRoomId = null;
+            currentSeat = null;
+            opponentWasPresent = false;
+            lastEventId = null;
 
-    function handleGameStateUpdate(gs) {
-      updateBattleUI(gs);
-
-      // 動畫與音效視覺觸發
-      if (gs.last_event_id && gs.last_event_id !== lastProcessedEventId) {
-        lastProcessedEventId = gs.last_event_id;
-        triggerEventAnimation(gs.last_event_type, gs.last_event_seat);
-      }
-
-      // 勝負判定
-      if (gs.status === 'finished') {
-        const isWinner = (gs.winner_seat === currentSeat);
-        const title = isWinner ? '🎉 獲得勝利！' : '💪 再接再厲！';
-        const msg = isWinner ? '你展現了驚人的乘法運算天賦！' : '別灰心，多練習幾次一定會更棒！';
-        showResultModal(isWinner, title, msg);
-      }
-    }
-
-    function updateBattleUI(gs) {
-      const myHp = (currentSeat === 1) ? gs.player1_hp : gs.player2_hp;
-      const opHp = (currentSeat === 1) ? gs.player2_hp : gs.player1_hp;
-      const myScore = (currentSeat === 1) ? gs.player1_score : gs.player2_score;
-      const opScore = (currentSeat === 1) ? gs.player2_score : gs.player1_score;
-
-      document.getElementById('p1-hp-num').textContent = myHp;
-      document.getElementById('p2-hp-num').textContent = opHp;
-      document.getElementById('p1-score-num').textContent = myScore;
-      document.getElementById('p2-score-num').textContent = opScore;
-
-      document.getElementById('p1-hp-bar').style.width = `${Math.max(0, (myHp / 7) * 100)}%`;
-      document.getElementById('p2-hp-bar').style.width = `${Math.max(0, (opHp / 7) * 100)}%`;
-    }
-
-    function triggerEventAnimation(eventType, eventSeat) {
-      const body = document.body;
-      const qBox = document.getElementById('question-card-box');
-
-      if ((eventSeat === currentSeat && eventType === 'hit') || (eventSeat !== currentSeat && eventType === 'self_hit')) {
-        // 對手受傷 / 我方成功攻擊
-        body.classList.add('hit-effect');
-        setTimeout(() => body.classList.remove('hit-effect'), 400);
-      } else {
-        // 我方受傷
-        qBox.classList.add('shake');
-        setTimeout(() => qBox.classList.remove('shake'), 400);
-      }
-    }
-
-    // ==========================================
-    // 6. 題目產生器與答題邏輯 (三年級二位數乘以一位數)
-    // ==========================================
-    function generateNextQuestion() {
-      // 隨機產生二位數 (11~49 簡單範疇) 與一位數 (2~9)
-      const num1 = Math.floor(Math.random() * 39) + 11;
-      const num2 = Math.floor(Math.random() * 8) + 2;
-      const correctVal = num1 * num2;
-
-      let optionsSet = new Set([correctVal]);
-      while (optionsSet.size < 4) {
-        let delta = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? 1 : -1);
-        if (Math.random() < 0.3) delta = 10 * (Math.random() < 0.5 ? 1 : -1);
-        let wrongVal = correctVal + delta;
-        if (wrongVal > 0 && wrongVal !== correctVal) {
-          optionsSet.add(wrongVal);
+            switchScreen('screen-lobby');
+            loadLobbyRooms();
         }
-      }
 
-      const options = Array.from(optionsSet).sort(() => Math.random() - 0.5);
+        // 輔助工具：雜湊字串選定角色
+        function hashString(str) {
+            let hash = 0;
+            if (!str) return hash;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash;
+        }
 
-      currentQuestion = {
-        text: `${num1} × ${num2} = ?`,
-        correct: correctVal,
-        options: options
-      };
-
-      document.getElementById('question-text').textContent = currentQuestion.text;
-      const btns = document.querySelectorAll('.option-btn');
-      btns.forEach((btn, index) => {
-        btn.textContent = currentQuestion.options[index];
-        btn.disabled = false;
-        btn.style.opacity = '1';
-      });
-      document.getElementById('feedback-msg').textContent = '';
-    }
-
-    async function submitAnswer(selectedIndex) {
-      const selectedValue = currentQuestion.options[selectedIndex];
-      const isCorrect = (selectedValue === currentQuestion.correct);
-
-      // 防連續快速點擊
-      const btns = document.querySelectorAll('.option-btn');
-      btns.forEach(btn => btn.disabled = true);
-
-      const feedback = document.getElementById('feedback-msg');
-      if (isCorrect) {
-        feedback.textContent = '✨ 答對了！發動攻擊！';
-        feedback.style.color = 'var(--success)';
-      } else {
-        feedback.textContent = '❌ 答錯了，再接再厲！';
-        feedback.style.color = 'var(--danger)';
-      }
-
-      try {
-        await supabase.rpc('resolve_answer', {
-          p_room_id: currentRoomId,
-          p_client_token: clientToken,
-          p_is_correct: isCorrect
-        });
-      } catch (err) {
-        console.error('Answer resolution error:', err);
-      }
-
-      setTimeout(() => {
-        generateNextQuestion();
-      }, 800);
-    }
-
-    // ==========================================
-    // 7. 輔助功能與清理
-    // ==========================================
-    function getDeterministicAvatars(roomId) {
-      let hash = 0;
-      for (let i = 0; i < roomId.length; i++) {
-        hash = (hash << 5) - hash + roomId.charCodeAt(i);
-        hash |= 0;
-      }
-      const idx1 = Math.abs(hash) % AVATARS.length;
-      let idx2 = (idx1 + 3) % AVATARS.length;
-      return { p1Av: AVATARS[idx1], p2Av: AVATARS[idx2] };
-    }
-
-    function showResultModal(isWinner, title, msg) {
-      document.getElementById('result-icon').textContent = isWinner ? '🏆' : '👏';
-      document.getElementById('result-title').textContent = title;
-      document.getElementById('result-msg').textContent = msg;
-      document.getElementById('modal-result').style.display = 'flex';
-    }
-
-    function resetToLobby() {
-      stopHeartbeat();
-      if (disconnectTimer) {
-        clearTimeout(disconnectTimer);
-        disconnectTimer = null;
-      }
-      if (gameChannel) {
-        supabase.removeChannel(gameChannel);
-        gameChannel = null;
-      }
-
-      currentRoomId = null;
-      currentSeat = null;
-      opponentWasPresent = false;
-      lastProcessedEventId = null;
-
-      document.getElementById('modal-result').style.display = 'none';
-      showScreen('screen-lobby');
-      refreshLobbyRooms();
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-  </script>
+        function escapeHtml(text) {
+            return text.replace(/[&<"']/g, function(m) {
+                return { '&': '&amp;', '<': '&lt;', '"': '&quot;', "'": '&#039;' }[m];
+            });
+        }
+    </script>
 </body>
 </html>
